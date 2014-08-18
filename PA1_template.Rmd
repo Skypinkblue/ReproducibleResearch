@@ -1,0 +1,112 @@
+# Reproducible Research: Peer Assessment 1
+
+
+## Loading and preprocessing the data
+
+```{r}
+##install.packages("plyr")
+library(plyr)
+
+data <- read.csv("activity.csv", )
+data$date <- as.Date(data$date, format = "%Y-%m-%d")
+```
+
+## What is mean total number of steps taken per day?
+
+Total number of steps taken each day histogram:
+
+```{r}
+dataSum <- ddply(data, .(date), summarise, steps = sum(steps))
+barplot(dataSum$steps, names.arg=dataSum$date, main = "Histogram of the total number of steps taken each day", xlab = "Steps")
+```
+
+Calculating mean number of steps per day:
+
+```{r}
+sMean <- mean(dataSum$steps, na.rm = TRUE)
+```
+Mean is `r sMean`
+
+Calculating median number of steps per day:
+
+```{r}
+sMedian <- median(dataSum$steps, na.rm = TRUE)
+```
+Median is `r sMedian`
+
+## What is the average daily activity pattern?
+Plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+```{r}
+avgStepsPerInterval <- ddply(data, .(interval), summarise, stepsMean = mean(steps, na.rm = TRUE))
+plot(avgStepsPerInterval$interval, avgStepsPerInterval$stepsMean, type="l",xlab="Five minuts intervals", ylab="Average number of steps")
+```
+
+Interval, that contains the maximum number of steps
+```{r}
+maximumStepsInterval <- avgStepsPerInterval[avgStepsPerInterval$stepsMean == max(avgStepsPerInterval$stepsMean),1]
+```
+is `r maximumStepsInterval`
+
+## Imputing missing values
+
+Total number of missing values in the dataset
+```{r}
+missingValuesCount <- sum(is.na(data))
+```
+Replacing NA with corresponded avgStepsPerInterval
+```{r}
+noNAData <- data
+noNAData$date <- as.Date(data$date)
+for (i in 1:length(data$steps)) {
+    if (is.na(noNAData[i,1])) {
+        noNAData[i,1] <- as.numeric(avgStepsPerInterval[(noNAData[i,3]==avgStepsPerInterval[,1]),2])
+    }  
+}
+```
+
+Histogram of the total number of steps taken each day
+```{r}
+noNAdataSum <- ddply(noNAData, .(date), summarise, steps = sum(steps))
+barplot(noNAdataSum$steps, names.arg=noNAdataSum$date, main = "Histogram of the total number of steps taken each day", xlab = "Steps")
+```
+
+Calculating mean number of steps per day:
+
+```{r}
+sMean <- mean(noNAdataSum$steps, na.rm = TRUE)
+```
+Mean is `r sMean`
+
+Calculating median number of steps per day:
+
+```{r}
+sMedian <- median(noNAdataSum$steps, na.rm = TRUE)
+```
+Median is `r sMedian`
+
+Values are not much differ from the estimates from the first part of the assignment
+There is no big impact of inputing missing data on the estimates of the total daily number of steps
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+Ading new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day
+
+```{r}
+weekday <- weekdays(noNAData$date, abbreviate = FALSE)
+noNAData$weekdayOrWeekend <- vector(length=length(noNAData$steps))
+
+noNAData$weekdayOrWeekend[weekday=="Saturday" | weekday=="Sunday"] <- "weekend"
+noNAData$weekdayOrWeekend[weekday!="Saturday" & weekday!="Sunday"] <- "weekday"
+
+noNAData$weekdayOrWeekend <- as.factor(noNAData$weekdayOrWeekend)
+```
+
+Making a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r}
+avgStepsPerInterval <- ddply(noNAData, .(interval, weekdayOrWeekend), summarise, steps = mean(steps))
+
+par(mfrow = c(2,1))
+plot(avgStepsPerInterval[avgStepsPerInterval$weekdayOrWeekend=="weekend",1], avgStepsPerInterval[avgStepsPerInterval$weekdayOrWeekend=="weekend",3], main="weekend", type="l",xlab="Five minuts intervals", ylab="Average number of steps", xlim=c(0,250), ylim=c(0,250))
+plot(avgStepsPerInterval[avgStepsPerInterval$weekdayOrWeekend=="weekday",1], avgStepsPerInterval[avgStepsPerInterval$weekdayOrWeekend=="weekday",3], main="weekday", type="l",xlab="Five minuts intervals", ylab="Average number of steps", xlim=c(0,250), ylim=c(0,250))
+```
